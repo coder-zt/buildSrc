@@ -1,0 +1,117 @@
+apply plugin: 'maven'
+apply plugin: 'com.jfrog.bintray'
+
+/**
+ * 上传maven私服
+ */
+uploadArchives {
+    configuration = configurations.archives
+    repositories {
+        mavenDeployer {
+            snapshotRepository(url: MAVEN_SNAPSHOT_URL) {
+                authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
+            }
+            repository(url: MAVEN_URL) {
+                authentication(userName: NEXUS_USERNAME, password: NEXUS_PASSWORD)
+            }
+            pom.project {
+                version VERSION_NAME
+                artifactId ARTIFACT_ID
+                groupId GROUP_ID
+                packaging TYPE
+                description DESCRIPTION
+            }
+        }
+    }
+}
+
+/**
+ * 本地测试时使用
+ */
+task uploadMavenLocal(type: Upload, group: 'upload') {
+    configuration = configurations.archives
+    repositories {
+        mavenDeployer {
+            repository(url: uri('E:/repo/maven'))
+            pom.project {
+                version '9.9.999'
+                artifactId ARTIFACT_ID
+                groupId GROUP_ID
+                packaging TYPE
+                description DESCRIPTION
+            }
+        }
+    }
+}
+
+install {
+    repositories.mavenInstaller {
+        pom.groupId = GROUP_ID
+        pom.artifactId = ARTIFACT_ID
+        pom.version = VERSION_NAME
+
+        pom.project {
+            name BINTRAY_NAME
+            description BINTRAY_PROJECT_DESC
+            url BINTRAY_PROJECT_GIT_URL
+
+            scm {
+                url BINTRAY_PROJECT_GIT_URL
+                connection BINTRAY_PROJECT_SCM_CONNECTION
+                developerConnection BINTRAY_PROJECT_SCM_CONNECTION
+            }
+
+            developers {
+                developer {
+                    id 'devil'
+                    name 'devil'
+                    email 'devil.gap@mrobot.cn'
+                }
+            }
+        }
+    }
+}
+
+task sourcesJar(type: Jar) {
+    classifier = 'sources'
+    group BasePlugin.BUILD_GROUP
+    description = 'Assembles a jar archive containing the main sources of this project.'
+    from sourceSets.main.allSource
+}
+
+task javadocJar(type: Jar) {
+    classifier = 'javadoc'
+    group BasePlugin.BUILD_GROUP
+    description = 'Assembles a jar archive containing the generated Javadoc API documentation of this project.'
+    from groovydoc
+}
+
+artifacts {
+    archives sourcesJar
+//    archives javadocJar
+}
+
+/**
+ * 上传 jcenter
+ */
+
+group = GROUP_ID
+version = VERSION_NAME
+Properties properties = new Properties()
+//properties.load(project.rootProject.file('local.properties').newDataInputStream())
+bintray {
+    user = BINTRAY_USER
+    key = properties.getProperty("bintray.apikey")
+    publish = true
+    configurations = ['archives']
+    pkg {
+        repo = BINTRAY_REPO
+        name = BINTRAY_NAME
+        desc = BINTRAY_PROJECT_DESC
+        websiteUrl = BINTRAY_PROJECT_GIT_URL
+        vcsUrl = BINTRAY_PROJECT_GIT_URL
+        issueTrackerUrl = BINTRAY_PROJECT_ISSUE_URL
+        licenses = ['MIT']
+        labels = ['gradle-plugin', 'android']
+    }
+}
