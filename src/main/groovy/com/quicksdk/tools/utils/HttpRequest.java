@@ -11,7 +11,7 @@ import java.net.URL;
 public class HttpRequest {
 
 	public static String getChannelInfos() {
-		if(true){
+		if(false){
 			return  "[{\"channelCode\":\"1778\",\"name\":\"Game9917_1778\",\"resourceVersionNo\":\"111\"}," +
 					"{\"channelCode\":\"2093\",\"name\":\"XiaFengYouXi_2093\",\"resourceVersionNo\":\"66\"}]";
 		}

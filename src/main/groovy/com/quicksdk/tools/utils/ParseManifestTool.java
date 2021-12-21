@@ -32,7 +32,10 @@ public class ParseManifestTool {
 
 	public static boolean placeholderRight = true;
 
-	public void execute() {
+	private String channelResourceName = "";
+
+	public void execute(String resourceName) {
+		channelResourceName = resourceName;
 		placeholderRight = true;
 		File file = new File("E:\\ResTestTemp\\AndroidManifest.xml");
 		String str = replaceConfig(file);
@@ -116,7 +119,7 @@ public class ParseManifestTool {
 		String data = getPermission(root);
 		if (!"".equals(data.trim())) {
 			System.out.println(data);
-			File file = FileUtils.getFile("E:\\ResTestTemp\\XiaFengYouXi_2093\\" + "permission.txt");
+			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\permission.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}
@@ -125,7 +128,7 @@ public class ParseManifestTool {
 		String data = exchangeAttr(getActive(root));
 		if (!"".equals(data.trim())) {
 			System.out.println(data);
-			File file = FileUtils.getFile("E:\\ResTestTemp\\XiaFengYouXi_2093\\" + "active.txt");
+			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\active.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}
@@ -134,7 +137,7 @@ public class ParseManifestTool {
 		String data = exchangeAttr(getRoot(root));
 		if (!"".equals(data.trim())) {
 			System.out.println(data);
-			File file = FileUtils.getFile("E:\\ResTestTemp\\XiaFengYouXi_2093\\" + "root.txt");
+			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\root.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 
@@ -143,7 +146,7 @@ public class ParseManifestTool {
 	public void writeDescriptionToFile() throws IOException {
 		String data = getDescription();
 		if (!"".equals(data.trim())) {
-			File file = FileUtils.getFile("E:\\ResTestTemp\\XiaFengYouXi_2093\\" + "description.txt");
+			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\description.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}

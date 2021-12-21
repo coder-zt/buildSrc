@@ -7,7 +7,8 @@ import com.quicksdk.tools.task.ChannelResourceCreateTask
 import com.quicksdk.tools.utils.ChannelInfo
 import com.quicksdk.tools.utils.Cmd
 import com.quicksdk.tools.utils.HttpRequest
-
+import org.apache.commons.io.FileUtils
+import org.apache.commons.io.LineIterator
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
@@ -28,6 +29,7 @@ class ExtractResPlugin implements Plugin<Project> {
     String tempResDir = tempDir + "\\res"
     String tempJarDir =  tempDir + "\\jar"
     String tempClassesDir =  tempDir + "\\classes"
+    String tempManifestFile =  tempDir + "\\AndroidManifest.xml"
     String tempAssetsDir =  tempDir + "\\assets"
     String tempLibDir =  tempDir + "\\lib"
     String tempDexDir =  tempDir + "\\dex"
@@ -46,33 +48,20 @@ class ExtractResPlugin implements Plugin<Project> {
             dxToolDir = projectBasePath + dxToolDir
             baksmaliToolDir = projectBasePath + baksmaliToolDir
         }
-        println dxToolDir
-        println "自定义插件开发"
-        project.subprojects.each {
-            if(it.name != "app"){
-                it.apply plugin: ExtractResPlugin
-            }
-        }
         mProject.extensions.create("jarExcludeExt", JarExcludeExt.class)
-
         project.afterEvaluate {
-            //添加需要删除classes下的文件名称
-            classesDeleteFile.add("R.class");
-            classesDeleteFile.add("BuildConfig.class");
-            classesDeleteFile.add("TestApplication.class");
-            //清理提取资源文件的目录
-            cleanTempResFile()
-            //创建需要的目录
-            creatTemResFile()
-            //获取工程项目lib下的aar文件
-            getProjectArrFile()
+            //子工程添加插件
+            def jarExt = mProject.extensions.getByType(JarExcludeExt.class)
+            println jarExt.excludeJar
+            project.subprojects.each {
+                if(!jarExt.excludAapplication.toString().contains(it.name)){
+                    it.apply plugin: ExtractResPlugin
+                }
+            }
             try {
-
-                def jarExt = mProject.extensions.getByType(JarExcludeExt.class)
-                println "jarExt ===> " + jarExt.excludeJar
-
+                //子工程添加不需要处理的jar
                 project.subprojects.each {
-                    if(it.name != "app"){
+                    if(!jarExt.excludAapplication.toString().contains(it.name)){
                         it.jarExcludeExt{
                             for(item in jarExt.excludeJar){
                                 addExcludeJar item
@@ -80,10 +69,28 @@ class ExtractResPlugin implements Plugin<Project> {
                         }
                     }
                 }
-                project.android.applicationVariants.all { applicationVariant ->
-                    transformResFiles(applicationVariant)
+                if(project.hasProperty("android")){
+                    project.android.applicationVariants.all { applicationVariant ->
+                        //preBuild
+                        String targetTaskName0 = 'preBuild'
+                        Task targetTask0 = mProject.tasks.findByName(targetTaskName0)
+                        targetTask0.doFirst { task ->
+                            println("hook preBuild 初始化提取工具")
+                            //添加需要删除classes下的文件名称
+                            classesDeleteFile.add("R.class");
+                            classesDeleteFile.add("BuildConfig.class");
+                            classesDeleteFile.add("TestApplication.class");
+                            //清理提取资源文件的目录
+                            cleanTempResFile()
+                            //创建需要的目录
+                            creatTemResFile()
+                            //获取工程项目lib下的aar文件
+                            getProjectArrFile()
+                        }
+                        transformResFiles(applicationVariant)
 //                    extractTempFile(applicationVariant)
-                    createExtractTask(applicationVariant)
+                        createExtractTask(applicationVariant)
+                    }
                 }
             }catch(Exception e){
                 e.printStackTrace()
@@ -118,7 +125,10 @@ class ExtractResPlugin implements Plugin<Project> {
             it.channelType = channelType
             it.channelName = channelName
             it.tempChannelResDir = tempDir
-            it.codeVersion = "1.1.1"
+            it.codeVersion =
+                    getChannelVersionFromCode(
+                            mProject.getProjectDir().absolutePath +
+                                    '\\src\\main\\java\\com\\quicksdk\\apiadapter\\' + channelName + '\\SdkAdapter.java')
         }
     }
     /**
@@ -128,6 +138,8 @@ class ExtractResPlugin implements Plugin<Project> {
         tempResList.add(tempResDir)
         tempResList.add(tempJarDir)
         tempResList.add(smaliResultDir)
+        tempResList.add(tempClassesDir)
+        tempResList.add(tempManifestFile)
         tempResList.add(tempDexDir)
         tempResList.add(tempAssetsDir)
         tempResList.add(tempLibDir)
@@ -207,7 +219,7 @@ class ExtractResPlugin implements Plugin<Project> {
         targetTask4.doFirst {task ->
             println '====== task：' + task.name + '======'
             task.inputs.files.each {
-                println "input file " + it.absolutePath
+//                println "input file " + it.absolutePath
                 def that = it
                 mProject.copy {
                     from that.absolutePath
@@ -229,7 +241,7 @@ class ExtractResPlugin implements Plugin<Project> {
         targetTask5.doFirst {task ->
             println '====== task：' + task.name + '======'
             task.inputs.files.each {
-                println "input file " + it.absolutePath
+//                println "input file " + it.absolutePath
                 //merged_java_res\debug\out.jar
                 if(it.absolutePath.contains("out.jar")){
                     def zipFile = mProject.file(it.absolutePath)
@@ -237,10 +249,22 @@ class ExtractResPlugin implements Plugin<Project> {
                     jarTree.files.each{
                         //E:\ChannelCode0(AS)\quickSDK_1778_game9917\build\tmp\expandedArchives\out.jar_d07cc2a64ec7c82281b2d67b1d51c0e9\assets\zlsioh.dat
                         if(it.absolutePath.contains("\\assets\\")){
+                            println "out.jar files ===> " + it.absolutePath
                             def that = it
+                            //获取文件的父目录，如果不是assets，需要添加父目录，直到assets的下一级
+                            def middleDir = ""
+                            def parent = that.parentFile
+                            while(true){
+                                if(parent.name.equals("assets")){
+                                    break;
+                                }
+                                middleDir = "\\" + parent.name + middleDir
+                                parent = parent.parentFile
+                            }
+                            println "assets tagert file dir ===> " + tempAssetsDir + middleDir
                             mProject.copy{
                                 from that
-                                into tempAssetsDir
+                                into tempAssetsDir + middleDir
                             }
                         }
                     }
@@ -280,7 +304,7 @@ class ExtractResPlugin implements Plugin<Project> {
         targetTask3.doFirst {task ->
             println '====== task：' + task.name + '======'
             task.inputs.files.each {
-                println "input file " + it.absolutePath
+//                println "input file " + it.absolutePath
                 if(it.absolutePath.endsWith('classes')){
                     def that = it
                     mProject.copy {
@@ -327,7 +351,7 @@ class ExtractResPlugin implements Plugin<Project> {
             }
         }else{
             if(classesDeleteFile.contains(handleTarget.name) || handleTarget.name.contains("R\$")){
-                mProject.delete(handleTarget);
+                mProject.delete(handleTarget)
                 println "删除文件 ===> " + handleTarget.absolutePath
                 return true;
             }else{
@@ -342,7 +366,7 @@ class ExtractResPlugin implements Plugin<Project> {
      * @param variant
      */
     private void transJarToSmali(ApplicationVariant variant) {
-//mergeDebugJavaResource
+        //mergeDebugJavaResource
         String targetTaskName2 = 'merge' + variant.name.capitalize() + 'JavaResource'
         Task targetTask2 = mProject.tasks.findByName(targetTaskName2)
         targetTask2.doFirst { task ->
@@ -449,7 +473,36 @@ class ExtractResPlugin implements Plugin<Project> {
                 }
             }
         }
+    }
 
+    /**
+     * 通过读取SdkAdapter.java获取资源版本
+     * @param sdkAdapterPath
+     * @return
+     */
+    String getChannelVersionFromCode(String sdkAdapterPath) {
+        if (!"".equals(sdkAdapterPath)) {
+            File file = new File(sdkAdapterPath);
+            LineIterator iter;
+            try {
+                iter = FileUtils.lineIterator(file, "UTF-8");
+                String line = "";
+                while (iter.hasNext()) {
+                    line = iter.next();
+                    if (line.contains("getChannelSdkVersion()")) {
+                        String next = iter.next();
+                        if (next.contains("return")) {
+                            String version = next.substring(next.indexOf("\"") + 1, next.lastIndexOf("\""));
+                            return version;
+                        }
+                    }
+                }
+                iter.close();
+            } catch (IOException e) {
+                e.printStackTrace();
+            }
+        }
+        return "";
     }
 
 }
