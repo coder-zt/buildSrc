@@ -33,11 +33,16 @@ public class ParseManifestTool {
 	public static boolean placeholderRight = true;
 
 	private String channelResourceName = "";
+	private String channelProjectPackName = "";
+	private String tempResPath = "";
 
-	public void execute(String resourceName) {
+	public void execute(String tempPath,String resourceName,String packName) {
 		channelResourceName = resourceName;
+		channelProjectPackName = packName;
+		tempResPath = tempPath;
 		placeholderRight = true;
-		File file = new File("E:\\ResTestTemp\\AndroidManifest.xml");
+		File file = new File(tempPath + "\\AndroidManifest.xml");
+		System.out.println(file.getAbsoluteFile());
 		String str = replaceConfig(file);
 		SAXReader saxReader = new SAXReader();
 		Document document;
@@ -47,7 +52,7 @@ public class ParseManifestTool {
 			writePermissionToFile(root);
 			writeActiveToFile(root);
 			writeRootToFile(root);
-			writeDescriptionToFile();
+//			writeDescriptionToFile();
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
@@ -118,17 +123,18 @@ public class ParseManifestTool {
 	public void writePermissionToFile(Element root) throws IOException {
 		String data = getPermission(root);
 		if (!"".equals(data.trim())) {
-			System.out.println(data);
-			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\permission.txt");
+			data = data.replaceAll(channelProjectPackName,"quicksdk_packName");
+			File file = FileUtils.getFile(tempResPath + "\\"  + channelResourceName + "\\permission.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}
 
 	public void writeActiveToFile(Element root) throws IOException {
 		String data = exchangeAttr(getActive(root));
+		//替换一下出现过的包名
+		data = data.replaceAll(channelProjectPackName,"quicksdk_packName");
 		if (!"".equals(data.trim())) {
-			System.out.println(data);
-			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\active.txt");
+			File file = FileUtils.getFile(tempResPath + "\\"  + channelResourceName + "\\active.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}
@@ -136,8 +142,8 @@ public class ParseManifestTool {
 	public void writeRootToFile(Element root) throws IOException {
 		String data = exchangeAttr(getRoot(root));
 		if (!"".equals(data.trim())) {
-			System.out.println(data);
-			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\root.txt");
+			data = data.replaceAll(channelProjectPackName,"quicksdk_packName");
+			File file = FileUtils.getFile(tempResPath + "\\" + channelResourceName + "\\root.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 
@@ -146,7 +152,7 @@ public class ParseManifestTool {
 	public void writeDescriptionToFile() throws IOException {
 		String data = getDescription();
 		if (!"".equals(data.trim())) {
-			File file = FileUtils.getFile("E:\\ResTestTemp\\" + channelResourceName + "\\description.txt");
+			File file = FileUtils.getFile(tempResPath + "\\"  + channelResourceName + "\\description.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}

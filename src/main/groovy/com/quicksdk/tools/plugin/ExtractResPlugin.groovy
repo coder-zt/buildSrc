@@ -1,12 +1,16 @@
 package com.quicksdk.tools.plugin
 
-import com.android.build.gradle.AppExtension
 import com.android.build.gradle.api.ApplicationVariant
+import com.quicksdk.tools.extension.ChannelProjectExt
+import com.quicksdk.tools.extension.ChannelToolExt
+import com.quicksdk.tools.extension.CreateRFileExt
 import com.quicksdk.tools.extension.JarExcludeExt
 import com.quicksdk.tools.task.ChannelResourceCreateTask
-import com.quicksdk.tools.utils.ChannelInfo
+import com.quicksdk.tools.task.ChannelProjectGenerateTask
 import com.quicksdk.tools.utils.Cmd
-import com.quicksdk.tools.utils.HttpRequest
+import com.quicksdk.tools.utils.PathUtils
+import com.quicksdk.tools.utils.RFileHandlerTool
+import com.quicksdk.tools.utils.RJavaHandlerTool
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.LineIterator
 import org.gradle.api.Plugin
@@ -20,39 +24,29 @@ import org.gradle.api.file.FileTree
  */
 class ExtractResPlugin implements Plugin<Project> {
 
-    def Project mProject
-    def List<String> projectArrFiles = new ArrayList<>()
-    def List<String> tempResList = new ArrayList<>()
-    def List<String> handleJarList = new ArrayList<>()
-    def List<String> classesDeleteFile = new ArrayList<>()
-    def String tempDir = "E:\\ResTestTemp"
-    String tempResDir = tempDir + "\\res"
-    String tempJarDir =  tempDir + "\\jar"
-    String tempClassesDir =  tempDir + "\\classes"
-    String tempManifestFile =  tempDir + "\\AndroidManifest.xml"
-    String tempAssetsDir =  tempDir + "\\assets"
-    String tempLibDir =  tempDir + "\\lib"
-    String tempDexDir =  tempDir + "\\dex"
-    String cmdToolDir =  tempDir + "\\cmd"//src/assets/baksmali.jar
-    String dxToolDir =   "\\buildSrc\\src\\assets\\dx.bat"//    String baksmaliToolDir =  E:\Coding\Android\Quick_Resource\buildSrc\src\assets
-    String baksmaliToolDir =  "\\buildSrc\\src\\assets\\baksmali.jar"
-    String smaliResultDir =  tempDir + "\\smali"
-    JarExcludeExt ext
-    String projectBasePath
+    Project mProject
+    def projectArrFiles = new ArrayList<>()
+    def tempResList = new ArrayList<>()
+    def handleJarList = new ArrayList<>()
+    def classesDeleteFile = new ArrayList<>()
 
     @Override
     void apply(Project project) {
         this.mProject = project
+
+
         if(mProject.parent != null){
-            projectBasePath = mProject.parent.getProjectDir().absolutePath
-            dxToolDir = projectBasePath + dxToolDir
-            baksmaliToolDir = projectBasePath + baksmaliToolDir
+            def projectBasePath = mProject.parent.getProjectDir().absolutePath
+            PathUtils.getInstance().initToolPath(projectBasePath)
         }
         mProject.extensions.create("jarExcludeExt", JarExcludeExt.class)
+        mProject.extensions.create("newChannelBean", ChannelProjectExt.class)
+        mProject.extensions.create("channelToolInfo", ChannelToolExt.class)
+        mProject.extensions.create("genRFiles", CreateRFileExt.class)
         project.afterEvaluate {
             //子工程添加插件
             def jarExt = mProject.extensions.getByType(JarExcludeExt.class)
-            println jarExt.excludeJar
+            def channelInfoExt = mProject.extensions.getByType(ChannelToolExt.class)
             project.subprojects.each {
                 if(!jarExt.excludAapplication.toString().contains(it.name)){
                     it.apply plugin: ExtractResPlugin
@@ -67,10 +61,17 @@ class ExtractResPlugin implements Plugin<Project> {
                                 addExcludeJar item
                             }
                         }
+                        it.channelToolInfo{
+                            channelResourceDir = channelInfoExt.channelResourceDir
+                            //提取打包过程中的临时文件目录
+                            channelTempDir = channelInfoExt.channelTempDir
+                        }
                     }
                 }
                 if(project.hasProperty("android")){
                     project.android.applicationVariants.all { applicationVariant ->
+                        def channelToolExt = mProject.extensions.getByType(ChannelToolExt.class)
+                        PathUtils.getInstance().initFilePath(channelToolExt.channelTempDir)
                         //preBuild
                         String targetTaskName0 = 'preBuild'
                         Task targetTask0 = mProject.tasks.findByName(targetTaskName0)
@@ -88,8 +89,11 @@ class ExtractResPlugin implements Plugin<Project> {
                             getProjectArrFile()
                         }
                         transformResFiles(applicationVariant)
-//                    extractTempFile(applicationVariant)
                         createExtractTask(applicationVariant)
+                    }
+                }else{
+                    if(project.subprojects.size() > 0){
+                        createChannelProjectTask()
                     }
                 }
             }catch(Exception e){
@@ -99,16 +103,58 @@ class ExtractResPlugin implements Plugin<Project> {
     }
 
     /**
+     * 创建生成新渠道的接入项目的任务
+     * @param variant
+     */
+    private void createChannelProjectTask(){
+        def channelExt = mProject.extensions.getByType(ChannelProjectExt.class)
+        if(channelExt == null){
+            return
+        }
+        mProject.tasks.create("ChannelProjectGenerator", ChannelProjectGenerateTask) {
+            it.group = "channelTool"
+            it.description = "generate channel project"
+            it.demoProjectPath = mProject.getProjectDir().absolutePath + "\\quickSDK_0_model"
+            it.channelProjectExt = channelExt
+        }
+    }
+
+
+    /**
      * 创建提取该渠道的资源任务
      * @param variant
      */
     private void createExtractTask(ApplicationVariant variant){
-        def xmlSlurper = new XmlSlurper()
         println "project path " + mProject.getProjectDir().absolutePath
+        String[] channelInfo = readChannelInfo().split("====")
+        def channelType = channelInfo[0]
+        def channelName = channelInfo[1]
+
+        def channelToolExt = mProject.extensions.getByType(ChannelToolExt.class)
+        def channelResourceDir = channelToolExt.channelResourceDir
+        println "channelResourceDir ===> " + channelResourceDir
+        mProject.tasks.create("extractChannelResource${variant.name.capitalize()}", ChannelResourceCreateTask) {
+            it.group = "channelTool"
+            it.description = "Extract channel resource"
+            it.channelType = channelType
+            it.channelName = channelName
+            it.projectPackName = mProject.android.defaultConfig.applicationId
+            it.tempChannelResDir = PathUtils.getInstance().getTempDir()
+            it.channelResourceDir = channelResourceDir
+            it.codeVersion =
+                    getChannelVersionFromCode(
+                            mProject.getProjectDir().absolutePath +
+                                    '\\src\\main\\java\\com\\quicksdk\\apiadapter\\' + channelName + '\\SdkAdapter.java')
+        }
+    }
+
+
+     String readChannelInfo(){
+        String channelName = ""
+        String channelType = ""
         def projectPath = mProject.getProjectDir().absolutePath
+        def xmlSlurper = new XmlSlurper()
         def response = xmlSlurper.parse(new File(projectPath + "\\src\\main\\assets\\quicksdk.xml"))
-        def channelType = "-1";
-        def channelName = "model";
         response.string.find{
             if(it.@name == 'channel_type'){
                 println "quicksdk.xml: channel_type ===> " + it
@@ -119,30 +165,24 @@ class ExtractResPlugin implements Plugin<Project> {
                 channelName = it
             }
         }
-        mProject.tasks.create("extractChannelResource${variant.name.capitalize()}", ChannelResourceCreateTask) {
-            it.group = "channelTool"
-            it.description = "Extract channel resource"
-            it.channelType = channelType
-            it.channelName = channelName
-            it.tempChannelResDir = tempDir
-            it.codeVersion =
-                    getChannelVersionFromCode(
-                            mProject.getProjectDir().absolutePath +
-                                    '\\src\\main\\java\\com\\quicksdk\\apiadapter\\' + channelName + '\\SdkAdapter.java')
-        }
+
+        return  channelType + "====" + channelName
     }
+
     /**
      * 清理提取资源文件的目录
      */
     private void  cleanTempResFile(){
-        tempResList.add(tempResDir)
-        tempResList.add(tempJarDir)
-        tempResList.add(smaliResultDir)
-        tempResList.add(tempClassesDir)
-        tempResList.add(tempManifestFile)
-        tempResList.add(tempDexDir)
-        tempResList.add(tempAssetsDir)
-        tempResList.add(tempLibDir)
+        tempResList.add(PathUtils.getInstance().getTempResDir())
+        tempResList.add(PathUtils.getInstance().getTempJarDir())
+        tempResList.add(PathUtils.getInstance().getSmaliResultDir())
+        tempResList.add(PathUtils.getInstance().getTempClassesDir())
+        tempResList.add(PathUtils.getInstance().getTempManifestFile())
+        tempResList.add(PathUtils.getInstance().getTempDexDir())
+        tempResList.add(PathUtils.getInstance().getTempAssetsDir())
+        tempResList.add(PathUtils.getInstance().getTempResJarDir())
+        tempResList.add(PathUtils.getInstance().getTempLibDir())
+        tempResList.add(PathUtils.getInstance().getTempRDir())
         for(res in tempResList){
             File resFile = new File(res)
             if(resFile.exists()){
@@ -155,8 +195,8 @@ class ExtractResPlugin implements Plugin<Project> {
      */
     private void  creatTemResFile(){
         List<String> createResList = new ArrayList<>()
-        createResList.add(smaliResultDir)
-        createResList.add(tempDexDir)
+        createResList.add(PathUtils.getInstance().getSmaliResultDir())
+        createResList.add(PathUtils.getInstance().getTempDexDir())
         for(res in createResList){
             File resFile = new File(res)
             if(!resFile.exists()){
@@ -193,8 +233,9 @@ class ExtractResPlugin implements Plugin<Project> {
         if(resDir.isDirectory()){
             mProject.copy {
                 from resDir.absolutePath
-                into tempResDir
+                into PathUtils.getInstance().getTempResDir()
             }
+            renameResValuesFiles("csdk")
         }else{
             assert "指定的res文件夹无效"
         }
@@ -208,6 +249,51 @@ class ExtractResPlugin implements Plugin<Project> {
         extractChannelAssets(variant)
     }
 
+
+
+    /**
+     * 对R.java进行特殊处理，将十六进制的值转为ActivityAdapter中的getResId()获取
+     * @param javaPath
+     */
+     def handleJavaFile2Jar(String packName,String javaPath, boolean isPack){
+        String channelName = readChannelInfo().split("====")[1]
+         if (isPack){
+             packName = "R"
+         }
+        String activityAdapter = "com.quicksdk.apiadapter." + channelName
+         //处理R.java进行的资源获取方式
+        new RFileHandlerTool().execute(packName, activityAdapter, javaPath)
+         //将java编译为R$*.class
+         //需要channel.jar和quicksdk.jar
+       new RJavaHandlerTool().execute(javaPath, PathUtils.getInstance().getTempClassesDir() + "\\quicksdk_channel.jar",
+               PathUtils.getInstance().getQuickSDKJarDir(), PathUtils.getInstance().getTempResJarDir())
+         //将生成的R$*.smali文件复制smali文件下
+         if(!isPack){
+             mProject.copy{
+                 from PathUtils.getInstance().getSmaliResResultDir()
+                 into PathUtils.getInstance().getSmaliResultDir()
+             }
+         }else{
+             mProject.copy{
+                 from PathUtils.getInstance().getSmaliResResultDir()
+                 into PathUtils.getInstance().getTempDir()
+              }
+         }
+    }
+
+    static String getPack(String RClassFile){
+        StringBuilder sbPack = new StringBuilder()
+        String[] splits = RClassFile.split("\\\\")
+        for(int i=0;i<splits.size(); i++){
+            sbPack.append(splits[i])
+            if(i < splits.size() - 2){
+                sbPack.append(".")
+            }else{
+                break
+            }
+        }
+        return sbPack.toString()
+    }
     /**
      * 分别hook mergeDebugAsset和packageDeug两个task，提取渠道的assets资源
      * @param variant
@@ -223,11 +309,11 @@ class ExtractResPlugin implements Plugin<Project> {
                 def that = it
                 mProject.copy {
                     from that.absolutePath
-                    into tempAssetsDir
+                    into PathUtils.getInstance().getTempAssetsDir()
                 }
             }
             //删除quicksdk.xml
-            File quicksdkXmlFile = new File(tempAssetsDir + File.separator + "quicksdk.xml")
+            File quicksdkXmlFile = new File(PathUtils.getInstance().getTempAssetsDir() + File.separator + "quicksdk.xml")
             println "删除quicksdk.xml ===》" + quicksdkXmlFile.absolutePath
             if(quicksdkXmlFile.exists()){
                 mProject.delete(quicksdkXmlFile)
@@ -261,10 +347,10 @@ class ExtractResPlugin implements Plugin<Project> {
                                 middleDir = "\\" + parent.name + middleDir
                                 parent = parent.parentFile
                             }
-                            println "assets tagert file dir ===> " + tempAssetsDir + middleDir
+                            println "assets tagert file dir ===> " + PathUtils.getInstance().getTempAssetsDir() + middleDir
                             mProject.copy{
                                 from that
-                                into tempAssetsDir + middleDir
+                                into PathUtils.getInstance().getTempAssetsDir() + middleDir
                             }
                         }
                     }
@@ -275,7 +361,7 @@ class ExtractResPlugin implements Plugin<Project> {
                         def that = new File(it.absolutePath + "\\lib")
                         mProject.copy{
                             from that
-                            into tempLibDir
+                            into PathUtils.getInstance().getTempLibDir()
                         }
                 }
                 //在此task下顺便提取minifest文件
@@ -284,7 +370,7 @@ class ExtractResPlugin implements Plugin<Project> {
                     def that = new File(it.absolutePath + "\\AndroidManifest.xml")
                     mProject.copy{
                         from that
-                        into tempDir
+                        into PathUtils.getInstance().getTempDir()
                     }
                 }
             }
@@ -304,36 +390,128 @@ class ExtractResPlugin implements Plugin<Project> {
         targetTask3.doFirst {task ->
             println '====== task：' + task.name + '======'
             task.inputs.files.each {
-//                println "input file " + it.absolutePath
+                def that = it
+                //将接入工程中的*.class文件复制的临时目录
                 if(it.absolutePath.endsWith('classes')){
-                    def that = it
                     mProject.copy {
                         from that.absolutePath
-                        into tempClassesDir
+                        into PathUtils.getInstance().getTempClassesDir()
+                    }
+                }
+                //将R.jar文件复制到临时目录
+                if(it.name == "R.jar") {
+                    mProject.copy {
+                        from that.absolutePath
+                        into PathUtils.getInstance().getTempResJarDir()
                     }
                 }
             }
-            //遍历classes目录，删除不需要的代码
-            new File(tempClassesDir).listFiles().each{
-                deleteClassOtherFile(it.absolutePath);
-            }
-            //将class下的*.class文件转化为smali
-            //先转为*.jar文件
-            //jar -cvf F:\JavaPlace\ExcRes\temp\proguard\quicksdk_channel.jar -C F:\JavaPlace\ExcRes\temp\classes/ .
-            //jar -cvf E:\ResTestTemp\smali\channel.jar -C F:\JavaPlace\ExcRes\temp\classes/ .
-            def cmd = "jar -cvf " + tempClassesDir + "\\quicksdk_channel.jar -C " + tempClassesDir + "/ ."
-            println cmd
-            Cmd.run(cmd)
-            //在转为*.dex文件
-            def outputDex = tempClassesDir + "\\" + "quicksdk_channel.dex"
-            cmd = dxToolDir + ' --dex --output=' + outputDex + " " +  tempClassesDir + "\\quicksdk_channel.jar"
-            println cmd
-            Cmd.run(cmd)
-            //在转为*.smali文件
-            cmd = "java -jar " + baksmaliToolDir + " -x " + outputDex + " -o " + smaliResultDir
-            println cmd
-            Cmd.run(cmd)
+            projectClass2Smali()
+            Map<String, String> allRFilePacks = extractResJarClass()
+            classes2Java(allRFilePacks)
+
         }
+    }
+
+    /**
+     * 将R$*.class文件转化为java文件
+     * @param allRFilePacks
+     * @return
+     */
+    private void classes2Java(Map<String, String> allRFilePacks){
+        def createRFileExt = mProject.extensions.getByType(CreateRFileExt.class)
+        if(createRFileExt.genPackList.size() < 0){
+            return
+        }
+        String pack = "no_pack"
+        if(createRFileExt.genPackList.contains("pack")){
+            pack = mProject.android.defaultConfig.applicationId
+        }
+        println "classes2Java 需要处理的res文件的包名：" + createRFileExt.genPackList
+        //处理已经注册的包名
+        allRFilePacks.each {
+            println "classes2Java 有R.java的包名：" + it.key
+            if (createRFileExt.genPackList.contains(it.key) || it.key == pack) {
+                //jad -o -r -s java -d src classes/**/*.class
+                StringBuilder sbCmd = new StringBuilder( PathUtils.getInstance().getJadToolDir())
+                sbCmd.append(" -o -r -s java -d ")
+                sbCmd.append(PathUtils.getInstance().getTempResJarDir())
+                sbCmd.append(" ")
+                sbCmd.append(it.value)
+                sbCmd.append(File.separator)
+                sbCmd.append("*.class")
+                println sbCmd.toString()
+//E:\ChannelCode0\buildSrc\src\assets\jad -o -r -s java -d E:\ResTestTemp\res-jar E:\ResTestTemp\res-jar\com\baidu\passport\sapi2\*.class
+                Cmd.run(sbCmd.toString())
+                //得到的R.java文件：
+                //it.value + "\\R.java"
+                //对R.java文件进行特殊处理
+                def RJavaPath = it.value + "\\R.java"
+                handleJavaFile2Jar(it.getKey(), RJavaPath, it.key == pack)
+            }
+        }
+    }
+
+    private Map<String, String>  extractResJarClass(){
+        //处理复制后的res.jar,提取jar中的R$.class
+        def rJarPath = PathUtils.getInstance().getTempResJarDir() + File.separator + "R.jar"
+        def zipFile = mProject.file(rJarPath)
+        FileTree jarTree = mProject.zipTree(zipFile)
+        Map<String, String> allRFilePacks = new HashMap<>()
+        jarTree.files.each {
+            def it2 = it
+            //E:\ChannelCode0\quicksdk_14_baidu\build\tmp\expandedArchives\R.jar_f83205a88863c5ede8568c111a248598\com\game\dubuwulin\g\baidu\R$id.class
+            def jarInFilePath = it.absolutePath
+            def classFilePath = new StringBuilder()
+            String[] splits = jarInFilePath.split("R\\.jar_")
+            def appendable = false
+            if (splits.size() == 2) {
+                splits[1].each {
+                    if (appendable) {
+                        classFilePath.append(it)
+                    } else if (it == '\\') {
+                        appendable = true
+                    }
+                }
+            }
+            def targetClassFile = new File(PathUtils.getInstance().getTempResJarDir() + File.separator + classFilePath.toString())
+            mProject.copy {
+                from it2.absolutePath
+                into targetClassFile.parentFile.absolutePath
+            }
+            //将不同的R文件路径与包名关联起来
+            def packR = getPack(classFilePath.toString())
+            if (!allRFilePacks.keySet().contains(packR)) {
+                allRFilePacks.put(packR, targetClassFile.parentFile.absolutePath)
+            }
+        }
+        return allRFilePacks
+    }
+
+    /**
+     * 将接入工程的的class文件转为smali
+     */
+    private void projectClass2Smali() {
+        //遍历classes目录，删除不需要的代码
+        new File(PathUtils.getInstance().getTempClassesDir()).listFiles().each {
+            deleteClassOtherFile(it.absolutePath);
+        }
+        //将class下的*.class文件转化为smali
+        //先转为*.jar文件
+        //jar -cvf F:\JavaPlace\ExcRes\temp\proguard\quicksdk_channel.jar -C F:\JavaPlace\ExcRes\temp\classes/ .
+        //jar -cvf E:\ResTestTemp\smali\channel.jar -C F:\JavaPlace\ExcRes\temp\classes/ .
+        def cmd = "jar -cvf " + PathUtils.getInstance().getTempClassesDir() + "\\quicksdk_channel.jar -C " + PathUtils.getInstance().getTempClassesDir() + "/ ."
+        println cmd
+        Cmd.run(cmd)
+        //在转为*.dex文件
+        def outputDex = PathUtils.getInstance().getTempClassesDir() + "\\" + "quicksdk_channel.dex"
+        cmd =  PathUtils.getInstance().getDxToolDir() + ' --dex --output=' + outputDex + " " + PathUtils.getInstance().getTempClassesDir() + "\\quicksdk_channel.jar"
+        println cmd
+        Cmd.run(cmd)
+        //在转为*.smali文件
+        cmd = "java -jar " +  PathUtils.getInstance().getBaksmaliToolDir() + " -x " + outputDex + " -o " + PathUtils.getInstance().getSmaliResultDir()
+        println cmd
+        Cmd.run(cmd)
     }
 
 
@@ -378,16 +556,16 @@ class ExtractResPlugin implements Plugin<Project> {
                 if (jarExt != null && jarExt.excludeJar != null && !jarExt.excludeJar.contains(it.name)) {
                     mProject.copy {
                         from temp.absolutePath
-                        into tempJarDir
+                        into PathUtils.getInstance().getTempJarDir()
                     }
                     if (it.name == 'classes.jar') {
                         def libName = it.parentFile.parentFile.name + ".jar"
-                        def reNameLib = new File(tempJarDir + "\\" + libName)
-                        def copiedFile = new File(tempJarDir + "\\classes.jar")
+                        def reNameLib = new File(PathUtils.getInstance().getTempJarDir() + "\\" + libName)
+                        def copiedFile = new File(PathUtils.getInstance().getTempJarDir() + "\\classes.jar")
                         copiedFile.renameTo(reNameLib.absolutePath)
                         handleJarList.add(reNameLib.absolutePath)
                     } else {
-                        handleJarList.add(tempJarDir + "\\" + it.name)
+                        handleJarList.add(PathUtils.getInstance().getTempJarDir() + "\\" + it.name)
                     }
                 } else {
                     println '排除quick中的库：' + it.name
@@ -399,8 +577,8 @@ class ExtractResPlugin implements Plugin<Project> {
             for (jar in handleJarList) {
 
                 File file = new File(jar)
-                def outputDex = tempDexDir + "\\" + file.name.replace(".jar", ".dex")
-                def cmd = dxToolDir + ' --dex --output=' + outputDex
+                def outputDex = PathUtils.getInstance().getTempDexDir() + "\\" + file.name.replace(".jar", ".dex")
+                def cmd =  PathUtils.getInstance().getDxToolDir() + ' --dex --output=' + outputDex
                 if (file.exists()) {
                     cmd += " " + jar
                     println cmd
@@ -412,7 +590,7 @@ class ExtractResPlugin implements Plugin<Project> {
             }
             //将dex转化为smali
             for (dex in dexResultList) {
-                def cmd = "java -jar " + baksmaliToolDir + " -x " + dex + " -o " + smaliResultDir
+                def cmd = "java -jar " +  PathUtils.getInstance().getBaksmaliToolDir() + " -x " + dex + " -o " + PathUtils.getInstance().getSmaliResultDir()
                 println cmd
                 Cmd.run(cmd)
             }
@@ -434,12 +612,32 @@ class ExtractResPlugin implements Plugin<Project> {
                 if (projectArrFiles.contains(it.parentFile.name)) {
                     mProject.copy {
                         from temp.absolutePath
-                        into tempResDir
+                        into PathUtils.getInstance().getTempResDir()
                     }
                 }
+                //res/values下values.xml可能会被同名的文件覆盖
+                renameResValuesFiles(it.parentFile.name)
             }
             //复制工程项目res下的资源文件
             getProjectResFile()
+        }
+    }
+
+    /**
+     * res/values下values.xml可能会被同名的文件覆盖
+     */
+    def renameResValuesFiles(String parentName){
+        new File(PathUtils.getInstance().getTempResDir()).listFiles().each {
+            if(it.name.startsWith("values")){
+                def that = it
+                it.listFiles().each {
+                    if(it.name == that.name + ".xml"){
+                        def newName = parentName + "_" + it.name
+                        println it.parentFile.absolutePath + File.separator + newName
+                        it.renameTo(it.parentFile.absolutePath + File.separator + newName)
+                    }
+                }
+            }
         }
     }
 
@@ -449,8 +647,6 @@ class ExtractResPlugin implements Plugin<Project> {
      * @param variant
      */
     private void extractTempFile(ApplicationVariant variant) {
-        println 'buildLog transformResFiles'
-        String tempDir = "F:\\ResTestTemp\\Test"
 //        String transformResFiles = 'generateDebugResources'
         mProject.tasks.each {
             if (it != null) {
@@ -458,7 +654,7 @@ class ExtractResPlugin implements Plugin<Project> {
                     println '====== task：' + task.name + '======'
                     task.inputs.files.each {
 
-                        String taskTempDir = tempDir + "\\" + task.name
+                        String taskTempDir = PathUtils.getInstance().getTempDir() + "\\" + task.name
                         File taskDir = new File(taskTempDir)
                         if(!taskDir.exists()){
                             taskDir.mkdir()
@@ -504,5 +700,4 @@ class ExtractResPlugin implements Plugin<Project> {
         }
         return "";
     }
-
 }

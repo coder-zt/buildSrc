@@ -3,18 +3,29 @@ package com.quicksdk.tools.task
 import com.quicksdk.tools.utils.ChannelInfo
 import com.quicksdk.tools.utils.HttpRequest
 import com.quicksdk.tools.utils.ParseManifestTool
+import net.sf.json.JSONObject
+import org.apache.commons.io.LineIterator;
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.IOFileFilter
 import org.gradle.api.DefaultTask
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
-import org.json.JSONObject
 
+/**
+ * 任务内容：
+ * 处理提取渠道的资源文件
+ */
 class ChannelResourceCreateTask extends DefaultTask {
 
     @Input
     String tempChannelResDir
+
+    @Input
+    String projectPackName
+
+    @Input
+    String channelResourceDir
 
     @Input
     @Optional
@@ -42,17 +53,32 @@ class ChannelResourceCreateTask extends DefaultTask {
     @TaskAction
     void execute(){
         init()
-
         def created = createChannelResDir()
         if(created){
             createFirstDirAndFile()
+            new ParseManifestTool().execute(tempChannelResDir, resourceName,projectPackName)
             moveResToFiles()
+            createDescText()
             renameValueXml()
+            removeDuplicateResources(filesDir.absolutePath + "\\" + "res")
         }else{
             println "创建渠道文件夹失败"
             return
         }
-        new ParseManifestTool().execute(resourceName)
+
+        //移动渠道资源到打包工具的目录下
+        File oldChannelRes = new File(channelResourceDir + File.separator + resourceName)
+        File tempChannelRes = new File(tempChannelResDir + File.separator + resourceName)
+        if(oldChannelRes.exists()){
+           getProject().delete(oldChannelRes)
+        }
+        getProject().copy {
+            from tempChannelRes.absolutePath
+            into oldChannelRes.absolutePath
+        }
+        if(tempChannelRes.exists()){
+            getProject().delete(tempChannelRes)
+        }
     }
 
     /**
@@ -97,8 +123,10 @@ class ChannelResourceCreateTask extends DefaultTask {
         //生成files目录
         filesDir = new File(channelResDir + File.separator + "files")
         filesDir.mkdir()
-        //生成description.txt
-        oaid = 0
+    }
+
+    private void createDescText() {
+//生成description.txt
         //{"versionNo":"90","channelVersion":"1.8.0.0","OAID":0,"aboveVersion":200,"needAddBaseLib":"1"}
         def descPath = channelResDir + File.separator + "description.txt"
         JSONObject descJson = new JSONObject()
@@ -116,6 +144,7 @@ class ChannelResourceCreateTask extends DefaultTask {
      *  lib
      *  res
      *  smali
+     *  r
      */
     void moveResToFiles(){
         List<String> resDirNames = new ArrayList<>();
@@ -123,9 +152,26 @@ class ChannelResourceCreateTask extends DefaultTask {
         resDirNames.add("lib")
         resDirNames.add("res")
         resDirNames.add("smali")
+        resDirNames.add("R")
+        def task = this
         resDirNames.each{
             def that = it
-            if(new File(tempChannelResDir + "\\" + that).exists()){
+            File resFile = new File(tempChannelResDir + "\\" + that)
+            if(resFile.exists()){
+                if(it == "R"){//处理R文件夹的文件，替换包名
+                    if (!resFile.exists()) {
+                        return;
+                    }
+                    File[] files = resFile.listFiles();
+                    for (File file : files) {
+                        String content = FileUtils.readFileToString(file, "UTF-8").replaceAll("LR/R", "L{{\\\$packNamePath}}/R");
+                        FileUtils.writeStringToFile(file, content, "UTF-8");
+                    }
+                }
+                if(it == "smali"){//处理smali文件夹的文件，判断有不有smali\com\bun
+                    boolean hasOaid = new File(tempChannelResDir + "\\smali\\com\\bun").exists()
+                    oaid = hasOaid?1:0
+                }
                 getProject().copy {
                     from tempChannelResDir + "\\" + that
                     into filesDir.absolutePath + "\\" + that
@@ -136,7 +182,7 @@ class ChannelResourceCreateTask extends DefaultTask {
     }
 
     //获取渠道中的非png xml文件
-    private void findSpecialFiles() throws IOException {
+    private  void findSpecialFiles(){
         String assetsFiles = getSpecialFiles(filesDir.absolutePath + "\\" + "assets");
         String resFiles = getSpecialFiles(filesDir.absolutePath + "\\" + "res");
         String specialFiles = (assetsFiles+resFiles).trim();
@@ -145,7 +191,12 @@ class ChannelResourceCreateTask extends DefaultTask {
         }
     }
 
-    private String getSpecialFiles(String dirPath){
+    //将R文件中的包名路径替换为占位符
+//    private static void renameRFilesPackName(File RDirFile){
+//
+//    }
+
+    private static String getSpecialFiles(String dirPath){
         StringBuilder sb = new StringBuilder();
         File dirFiles = new File(dirPath);
         if (dirFiles.exists()) {
@@ -181,8 +232,72 @@ class ChannelResourceCreateTask extends DefaultTask {
     def renameValueXml(){
         def valuesPath = filesDir.absolutePath + "\\res\\values"
         new File(valuesPath).listFiles().each{
-           println it.absolutePath
+            def renamePath = it.absolutePath.replace("values\\","values\\csdk_")
+            it.renameTo(renamePath)
         }
+    }
+
+    private void removeDuplicateResources(String resPath) throws IOException{
+        File res = new File(resPath);
+        if(res.exists()){
+            File[] files = res.listFiles();
+            for (int i = 0; i < files.length; i++) {
+                if(files[i].getName().startsWith("values")){
+                    removeDuplicateResources2(files[i].getAbsolutePath());
+                }
+            }
+        }
+    }
+
+    //移除values下与游戏有冲突的资源
+    private void removeDuplicateResources2(String valuesDirPath) throws IOException {
+        File valuesDir = new File(valuesDirPath);
+        if (!valuesDir.exists()) {
+            return;
+        }
+        for (File file : valuesDir.listFiles()) {
+            if (file.isFile()) {
+                String fileName = file.getName().toLowerCase();
+                if (fileName.contains("string") || fileName.contains("value")) {
+                    removeDuplicateStrings(file.getAbsolutePath());
+                }
+                if (fileName.contains("dimen") || fileName.contains("value")) {
+                    removeDuplicateDimens(file.getAbsolutePath());
+                }
+            }
+        }
+    }
+
+    private void removeDuplicateStrings(String filePath) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        File file = new File(filePath);
+        LineIterator iterator = FileUtils.lineIterator(file, "UTF-8");
+        while (iterator.hasNext()) {
+            String line = iterator.next();
+            if (line.contains("<string name=\"app_name\">") || line.contains("<string name=\"action_settings\">")
+                    || line.contains("<string name=\"hello_world\">")) {
+
+            } else {
+                sb.append(line + "\r\n");
+            }
+        }
+        iterator.close();
+        FileUtils.writeStringToFile(file, sb.toString(), "UTF-8");
+    }
+
+    private void removeDuplicateDimens(final String filePath) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        File file = new File(filePath);
+        LineIterator iterator = FileUtils.lineIterator(file, "UTF-8");
+        while (iterator.hasNext()) {
+            String line = iterator.next();
+            if (line.contains("<dimen name=\"activity_horizontal_margin\">") || line.contains("<dimen name=\"activity_vertical_margin\">")) {;
+            } else {
+                sb.append(line + "\r\n");
+            }
+        }
+        iterator.close();
+        FileUtils.writeStringToFile(file, sb.toString(), "UTF-8");
     }
 
     def write(String destPath, String content) {
@@ -193,7 +308,6 @@ class ChannelResourceCreateTask extends DefaultTask {
                 destFile.createNewFile()
             }
             destFile.withWriter{ writer ->
-                println content
                 writer.write(content)
             }
         }catch(Exception e){
