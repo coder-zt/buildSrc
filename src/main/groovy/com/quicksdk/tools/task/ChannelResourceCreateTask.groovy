@@ -1,13 +1,21 @@
 package com.quicksdk.tools.task
 
+import com.quicksdk.tools.extension.CreateRFileExt
 import com.quicksdk.tools.utils.ChannelInfo
+import com.quicksdk.tools.utils.Cmd
 import com.quicksdk.tools.utils.HttpRequest
+import com.quicksdk.tools.utils.JarCompiler
+import com.quicksdk.tools.utils.Logger
 import com.quicksdk.tools.utils.ParseManifestTool
+import com.quicksdk.tools.utils.PathUtils
+import com.quicksdk.tools.utils.RFileHandlerTool
+import com.quicksdk.tools.utils.RJavaHandlerTool
 import net.sf.json.JSONObject
 import org.apache.commons.io.LineIterator;
 import org.apache.commons.io.FileUtils
 import org.apache.commons.io.filefilter.IOFileFilter
 import org.gradle.api.DefaultTask
+import org.gradle.api.file.FileTree
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.TaskAction
@@ -20,6 +28,9 @@ class ChannelResourceCreateTask extends DefaultTask {
 
     @Input
     String tempChannelResDir
+
+    @Input
+    String tempHandleDir
 
     @Input
     String projectPackName
@@ -56,8 +67,16 @@ class ChannelResourceCreateTask extends DefaultTask {
         def created = createChannelResDir()
         if(created){
             createFirstDirAndFile()
-            new ParseManifestTool().execute(tempChannelResDir, resourceName,projectPackName)
+            new ParseManifestTool().execute(tempChannelResDir,tempHandleDir, resourceName,projectPackName)
             moveResToFiles()
+            //将工程接入代码编译为jar复制到jar中
+            projectClass2Smali()
+            //将jar编译为smali
+            compileJar2Smali()
+            //处理R.jar
+            handlerRSmali()
+            //复制smali文件夹到Files下
+            moveSmaliToFiles()
             createDescText()
             renameValueXml()
             removeDuplicateResources(filesDir.absolutePath + "\\" + "res")
@@ -99,7 +118,7 @@ class ChannelResourceCreateTask extends DefaultTask {
      * 创建渠道的资源文件夹
      */
     boolean createChannelResDir(){
-        channelResDir = tempChannelResDir + File.separator + resourceName
+        channelResDir = tempHandleDir + File.separator + resourceName
         File channelResFile = new File(channelResDir)
         if(channelResFile.exists()){
             if(channelResFile.deleteDir()){
@@ -126,7 +145,7 @@ class ChannelResourceCreateTask extends DefaultTask {
     }
 
     private void createDescText() {
-//生成description.txt
+        //生成description.txt
         //{"versionNo":"90","channelVersion":"1.8.0.0","OAID":0,"aboveVersion":200,"needAddBaseLib":"1"}
         def descPath = channelResDir + File.separator + "description.txt"
         JSONObject descJson = new JSONObject()
@@ -143,16 +162,12 @@ class ChannelResourceCreateTask extends DefaultTask {
      *  assets
      *  lib
      *  res
-     *  smali
-     *  r
      */
     void moveResToFiles(){
         List<String> resDirNames = new ArrayList<>();
         resDirNames.add("assets")
         resDirNames.add("lib")
         resDirNames.add("res")
-        resDirNames.add("smali")
-        resDirNames.add("R")
         def task = this
         resDirNames.each{
             def that = it
@@ -181,6 +196,202 @@ class ChannelResourceCreateTask extends DefaultTask {
         findSpecialFiles()
     }
 
+    private void compileJar2Smali(){
+        def jarPath = tempChannelResDir + "//jar"
+        def jarDirs = new File(jarPath)
+        if(!jarDirs.exists()){
+            return
+        }
+        def jarFiles = jarDirs.listFiles()
+        Logger.i("compileJar2Smali jar file size => " + jarFiles.size())
+        JarCompiler.check(tempHandleDir + "\\temp")
+        def quickChannelJar = null
+        for(jarFile in jarFiles){
+            //quicksdk_channel.jar先不编译，因为后面会删除com/quicksdk下多余R$*.smali文件
+            if(jarFile.name == "quicksdk_channel.jar"){
+                quickChannelJar = jarFile
+                continue
+            }
+            JarCompiler.execute(jarFile, tempHandleDir + "\\temp")
+        }
+        //清除R.jar生成的com\quicksdk下的文件
+        def quickSDKDir = tempHandleDir + "\\temp\\smali\\com\\quicksdk"
+        def quickSDKFile = new File(quickSDKDir)
+        if(quickSDKFile.exists()){
+           getProject().delete(quickSDKFile)
+        }
+        if(quickChannelJar != null){
+            JarCompiler.execute(quickChannelJar, tempHandleDir + "\\temp")
+        }
+    }
+
+    private void handlerRSmali(){
+        def createRFileExt = getProject().extensions.getByType(CreateRFileExt.class)
+        if(createRFileExt.genPackList.size() < 0){
+            return
+        }
+        String pack = "no_pack"
+        if(createRFileExt.genPackList.contains("pack")){
+            pack = getProject().android.defaultConfig.applicationId
+
+        }
+        def result = extractResJarClass()
+        result.each {
+            if (createRFileExt.genPackList.contains(it.key) || it.key == pack) {
+                //jad -o -r -s java -d src classes/**/*.class
+                StringBuilder sbCmd = new StringBuilder( PathUtils.getInstance().getJadToolDir())
+                sbCmd.append(" -o -r -s java -d ")
+                sbCmd.append(PathUtils.getInstance().getTempResJarDir())
+                sbCmd.append(" ")
+                sbCmd.append(it.value)
+                sbCmd.append(File.separator)
+                sbCmd.append("*.class")
+                //println sbCmd.toString()
+//E:\ChannelCode0\buildSrc\src\assets\jad -o -r -s java -d E:\ResTestTemp\res-jar E:\ResTestTemp\res-jar\com\baidu\passport\sapi2\*.class
+                Cmd.run(sbCmd.toString())
+                //得到的R.java文件：
+                //it.value + "\\R.java"
+                //对R.java文件进行特殊处理
+                def RJavaPath = it.value + "\\R.java"
+                handleJavaFile2Jar(it.getKey(), RJavaPath, it.key == pack)
+            }
+        }
+    }
+
+    /**
+     * 对R.java进行特殊处理，将十六进制的值转为ActivityAdapter中的getResId()获取
+     * @param javaPath
+     */
+    def handleJavaFile2Jar(String packName,String javaPath, boolean isPack){
+        Logger.i("packName === > $packName")
+        Logger.i("javaPath === > $javaPath")
+        String channelName = readChannelInfo().split("====")[1]
+        if (isPack){
+            packName = "R"
+        }
+        String activityAdapter = "com.quicksdk.apiadapter." + channelName
+        //处理R.java进行的资源获取方式
+        new RFileHandlerTool().execute(packName, activityAdapter, javaPath)
+        //将java编译为R$*.class
+        //需要channel.jar和quicksdk.jar
+        new RJavaHandlerTool().execute(javaPath, PathUtils.getInstance().getTempClassesDir() + "\\quicksdk_channel.jar",
+                PathUtils.getInstance().getQuickSDKJarDir(), PathUtils.getInstance().getTempResJarDir())
+        //将生成的R$*.smali文件复制smali文件下
+        if(!isPack){
+            def nextDirName = packName.split("\\.")[0]
+
+            getProject().copy{
+                from PathUtils.getInstance().getSmaliResResultDir() + File.separator + nextDirName
+                into PathUtils.getInstance().getSmaliResultDir() + File.separator + nextDirName
+            }
+        }else{
+            getProject().copy{
+                from PathUtils.getInstance().getSmaliResResultDir() +"\\R"
+                into PathUtils.getInstance().getTempDir() + "\\temp\\R"
+            }
+        }
+    }
+
+    private String readChannelInfo(){
+        String channelName = ""
+        String channelType = ""
+        def projectPath = getProject().getProjectDir().absolutePath
+        def xmlSlurper = new XmlSlurper()
+        def response = xmlSlurper.parse(new File(projectPath + "\\src\\main\\assets\\quicksdk.xml"))
+        response.string.find{
+            if(it.@name == 'channel_type'){
+                //println "quicksdk.xml: channel_type ===> " + it
+                channelType = it
+            }
+            if(it.@name == 'quicksdk_channel_name'){
+                //println "quicksdk.xml: quicksdk_channel_name ===> " + it
+                channelName = it
+            }
+        }
+
+        return  channelType + "====" + channelName
+    }
+
+    private Map<String, String>  extractResJarClass(){
+        //处理复制后的res.jar,提取jar中的R$.class
+        def rJarPath = PathUtils.getInstance().getTempResJarDir() + File.separator + "R.jar"
+        if(!new File(rJarPath).exists()){
+            return
+        }
+        def zipFile = getProject().file(rJarPath)
+        FileTree jarTree = getProject().zipTree(zipFile)
+        Map<String, String> allRFilePacks = new HashMap<>()
+        jarTree.files.each {
+            def it2 = it
+            //E:\ChannelCode0\quicksdk_14_baidu\build\tmp\expandedArchives\R.jar_f83205a88863c5ede8568c111a248598\com\game\dubuwulin\g\baidu\R$id.class
+            def jarInFilePath = it.absolutePath
+            def classFilePath = new StringBuilder()
+            String[] splits = jarInFilePath.split("R\\.jar_")
+            def appendable = false
+            if (splits.size() == 2) {
+                splits[1].each {
+                    if (appendable) {
+                        classFilePath.append(it)
+                    } else if (it == '\\') {
+                        appendable = true
+                    }
+                }
+            }
+            def targetClassFile = new File(PathUtils.getInstance().getTempResJarDir() + File.separator + classFilePath.toString())
+            getProject().copy {
+                from it2.absolutePath
+                into targetClassFile.parentFile.absolutePath
+            }
+            //将不同的R文件路径与包名关联起来
+            def packR = getPack(classFilePath.toString())
+            if (!allRFilePacks.keySet().contains(packR)) {
+                allRFilePacks.put(packR, targetClassFile.parentFile.absolutePath)
+            }
+        }
+        return allRFilePacks
+    }
+
+    static String getPack(String RClassFile){
+        StringBuilder sbPack = new StringBuilder()
+        String[] splits = RClassFile.split("\\\\")
+        for(int i=0;i<splits.size(); i++){
+            sbPack.append(splits[i])
+            if(i < splits.size() - 2){
+                sbPack.append(".")
+            }else{
+                break
+            }
+        }
+        return sbPack.toString()
+    }
+
+    void moveSmaliToFiles(){
+        List<String> resDirNames = new ArrayList<>()
+        resDirNames.add("R")
+        resDirNames.add("smali")
+        resDirNames.each{
+            def that = it
+            File resFile = new File(tempHandleDir + "\\temp\\" + that)
+            if(resFile.exists()){
+                if(it == "R"){//处理R文件夹的文件，替换包名
+                    File[] files = resFile.listFiles();
+                    for (File file : files) {
+                        String content = FileUtils.readFileToString(file, "UTF-8").replaceAll("LR/R", "L{{\\\$packNamePath}}/R");
+                        FileUtils.writeStringToFile(file, content, "UTF-8");
+                    }
+                }
+                if(it == "smali"){//处理smali文件夹的文件，判断有不有smali\com\bun
+                    boolean hasOaid = new File(tempHandleDir + "\\temp\\smali\\com\\bun").exists()
+                    oaid = hasOaid?1:0
+                }
+                getProject().copy {
+                    from tempHandleDir + "\\temp\\" + that
+                    into filesDir.absolutePath + "\\" + that
+                }
+            }
+        }
+    }
+
     //获取渠道中的非png xml文件
     private  void findSpecialFiles(){
         String assetsFiles = getSpecialFiles(filesDir.absolutePath + "\\" + "assets");
@@ -191,10 +402,21 @@ class ChannelResourceCreateTask extends DefaultTask {
         }
     }
 
-    //将R文件中的包名路径替换为占位符
-//    private static void renameRFilesPackName(File RDirFile){
-//
-//    }
+    /**
+     * 将接入工程的的class文件转为jar，并复制到jar目录中
+     */
+    private void projectClass2Smali() {
+        //转为*.jar文件
+        //jar -cvf F:\JavaPlace\ExcRes\temp\proguard\quicksdk_channel.jar -C F:\JavaPlace\ExcRes\temp\classes/ .
+        //jar -cvf E:\ResTestTemp\smali\channel.jar -C F:\JavaPlace\ExcRes\temp\classes/ .
+        def channelJarPath = PathUtils.getInstance().getTempClassesDir() + "\\quicksdk_channel.jar";
+        def cmd = "jar -cvf " + channelJarPath + " -C " + PathUtils.getInstance().getTempClassesDir() + "/ ."
+        Cmd.run(cmd)
+        getProject().copy {
+            from new File(channelJarPath)
+            into tempChannelResDir + "//jar"
+        }
+    }
 
     private static String getSpecialFiles(String dirPath){
         StringBuilder sb = new StringBuilder();

@@ -21,6 +21,7 @@ public class PathUtils {
     String tempDexDir;
     String smaliResultDir;
     String smaliResResultDir;
+    String manifestFileDir;
 
     private PathUtils(){
 
@@ -52,16 +53,17 @@ public class PathUtils {
             initFilePath = true;
         }
         tempDir = tempPath;
-        tempResDir = tempDir + "\\res";
-        tempJarDir =  tempDir + "\\jar";
-        tempClassesDir =  tempDir + "\\classes";
-        tempManifestFile =  tempDir + "\\AndroidManifest.xml";
-        tempAssetsDir =  tempDir + "\\assets";
-        tempLibDir =  tempDir + "\\lib";
-        tempDexDir =  tempDir + "\\dex";
-        smaliResultDir =  tempDir + "\\smali";
-        tempResJarDir =  tempDir + "\\res-jar";
+        tempResDir = tempDir + "\\channelResources\\res";
+        tempJarDir =  tempDir + "\\channelResources\\jar";
+        tempClassesDir =  tempDir + "\\channelResources\\classes";
+        tempManifestFile =  tempDir + "\\channelResources\\AndroidManifest.xml";
+        tempAssetsDir =  tempDir + "\\channelResources\\assets";
+        tempLibDir =  tempDir + "\\channelResources\\lib";
+        tempDexDir =  tempDir + "\\temp\\dex";
+        smaliResultDir =  tempDir + "\\temp\\smali";
+        tempResJarDir =  tempDir + "\\channelResources\\res-jar";
         tempRDir =  tempDir + "\\R";
+        manifestFileDir =  tempDir + "\\channelResources";
     }
 
     public String getDxToolDir() {
@@ -130,5 +132,9 @@ public class PathUtils {
 
     public String getTempRDir() {
         return tempRDir;
+    }
+
+    public String getManifestFileDir() {
+        return manifestFileDir;
     }
 }

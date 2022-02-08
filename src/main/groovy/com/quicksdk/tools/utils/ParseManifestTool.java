@@ -34,12 +34,12 @@ public class ParseManifestTool {
 
 	private String channelResourceName = "";
 	private String channelProjectPackName = "";
-	private String tempResPath = "";
+	private String tempHandlePath = "";
 
-	public void execute(String tempPath,String resourceName,String packName) {
+	public void execute(String tempPath,String handlePath,String resourceName,String packName) {
 		channelResourceName = resourceName;
 		channelProjectPackName = packName;
-		tempResPath = tempPath;
+		tempHandlePath = handlePath;
 		placeholderRight = true;
 		File file = new File(tempPath + "\\AndroidManifest.xml");
 		System.out.println(file.getAbsoluteFile());
@@ -124,7 +124,7 @@ public class ParseManifestTool {
 		String data = getPermission(root);
 		if (!"".equals(data.trim())) {
 			data = data.replaceAll(channelProjectPackName,"quicksdk_packName");
-			File file = FileUtils.getFile(tempResPath + "\\"  + channelResourceName + "\\permission.txt");
+			File file = FileUtils.getFile(tempHandlePath + "\\"  + channelResourceName + "\\permission.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}
@@ -134,7 +134,7 @@ public class ParseManifestTool {
 		//替换一下出现过的包名
 		data = data.replaceAll(channelProjectPackName,"quicksdk_packName");
 		if (!"".equals(data.trim())) {
-			File file = FileUtils.getFile(tempResPath + "\\"  + channelResourceName + "\\active.txt");
+			File file = FileUtils.getFile(tempHandlePath + "\\"  + channelResourceName + "\\active.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}
@@ -143,7 +143,7 @@ public class ParseManifestTool {
 		String data = exchangeAttr(getRoot(root));
 		if (!"".equals(data.trim())) {
 			data = data.replaceAll(channelProjectPackName,"quicksdk_packName");
-			File file = FileUtils.getFile(tempResPath + "\\" + channelResourceName + "\\root.txt");
+			File file = FileUtils.getFile(tempHandlePath + "\\" + channelResourceName + "\\root.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 
@@ -152,7 +152,7 @@ public class ParseManifestTool {
 	public void writeDescriptionToFile() throws IOException {
 		String data = getDescription();
 		if (!"".equals(data.trim())) {
-			File file = FileUtils.getFile(tempResPath + "\\"  + channelResourceName + "\\description.txt");
+			File file = FileUtils.getFile(tempHandlePath + "\\"  + channelResourceName + "\\description.txt");
 			FileUtils.writeStringToFile(file, data, "UTF-8");
 		}
 	}

@@ -56,7 +56,7 @@ public class RJavaHandlerTool {
         if (!outputDexDir.exists()) {
             outputDexDir.mkdir();
         }
-        cmd = dxToolDir + " --dex --output=" + outputDex + " " + outputDir + "\\quicksdk_res.jar";
+        cmd = dxToolDir + " --dex --min-sdk-version=26 --output=" + outputDex + " " + outputDir + "\\quicksdk_res.jar";
         System.out.println(cmd);
         Cmd.run(cmd);
         String baksmaliToolDir = PathUtils.getInstance().getBaksmaliToolDir();
@@ -66,7 +66,7 @@ public class RJavaHandlerTool {
         if (!smaliDir.exists()) {
             smaliDir.mkdir();
         }
-        cmd = "java -jar " + baksmaliToolDir + " -x " + outputDex + " -o " + smaliResultDir;
+        cmd = "java -jar " + baksmaliToolDir + " d " + outputDex + " -o " + smaliResultDir;
         System.out.println(cmd);
         Cmd.run(cmd);
     }
