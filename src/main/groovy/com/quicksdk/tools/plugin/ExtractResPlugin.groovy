@@ -11,9 +11,11 @@ import com.quicksdk.tools.hook.MergeJavaResourceHook
 import com.quicksdk.tools.hook.MergeResourcesHook
 import com.quicksdk.tools.hook.PackageHook
 import com.quicksdk.tools.hook.PerBuildHook
+import com.quicksdk.tools.hook.ProcessResourcesHook
 import com.quicksdk.tools.task.ChannelResourceCreateTask
 import com.quicksdk.tools.task.ChannelProjectGenerateTask
 import com.quicksdk.tools.utils.Cmd
+import com.quicksdk.tools.utils.Logger
 import com.quicksdk.tools.utils.PathUtils
 import com.quicksdk.tools.utils.RFileHandlerTool
 import com.quicksdk.tools.utils.RJavaHandlerTool
@@ -22,7 +24,9 @@ import org.apache.commons.io.LineIterator
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 import org.gradle.api.Task
+import org.gradle.api.artifacts.DependencySet
 import org.gradle.api.file.FileTree
+import org.gradle.api.internal.artifacts.dependencies.DefaultExternalModuleDependency
 
 /**
  * 本插件开发借鉴于：https://github.com/908657085/transform-aar
@@ -36,8 +40,6 @@ import org.gradle.api.file.FileTree
 class ExtractResPlugin implements Plugin<Project> {
 
     Project mProject
-    def projectArrFiles = new ArrayList<>()
-    def classesDeleteFile = new ArrayList<>()
     def extractTaskTempFile = false
 
     @Override
@@ -51,6 +53,7 @@ class ExtractResPlugin implements Plugin<Project> {
         createExt()
         project.afterEvaluate {
             try {
+
                 //将父工程中配置的参数下发给子工程
                 distributeParams()
                 def channelToolExt = mProject.extensions.getByType(ChannelToolExt.class)
@@ -63,6 +66,7 @@ class ExtractResPlugin implements Plugin<Project> {
                             hookKeyTasks(applicationVariant)
                             createExtractTask(applicationVariant)
                         }
+
                     }
                 }else{
                     if(project.subprojects.size() > 0){
@@ -75,6 +79,7 @@ class ExtractResPlugin implements Plugin<Project> {
         }
     }
 
+
     /**
      * hook关键task获取对应的资源
      *
@@ -86,6 +91,8 @@ class ExtractResPlugin implements Plugin<Project> {
         new MergeResourcesHook(applicationVariant, mProject).hook()
         new MergeJavaResourceHook(applicationVariant, mProject).hook()
         new DexBuilderHook(applicationVariant, mProject).hook()
+        //processDebugResources
+        new ProcessResourcesHook(applicationVariant, mProject).hook()
         new MergeAssetsHook(applicationVariant, mProject).hook()
         new PackageHook(applicationVariant, mProject).hook()
     }
@@ -161,11 +168,28 @@ class ExtractResPlugin implements Plugin<Project> {
 
         def channelToolExt = mProject.extensions.getByType(ChannelToolExt.class)
         def channelResourceDir = channelToolExt.channelResourceDir
-        //println "channelResourceDir ===> " + channelResourceDir
+        //创建task:生成的资源不会覆盖到打包工具的渠道资源的目录下
         mProject.tasks.create("extractChannelResource${variant.name.capitalize()}", ChannelResourceCreateTask) {
             it.group = "channelTool"
             it.description = "Extract channel resource"
             it.channelType = channelType
+            it.move = false
+            it.channelName = channelName
+            it.projectPackName = mProject.android.defaultConfig.applicationId
+            it.tempChannelResDir = PathUtils.getInstance().getManifestFileDir()
+            it.tempHandleDir = PathUtils.getInstance().getTempDir()
+            it.channelResourceDir = channelResourceDir
+            it.codeVersion =
+                    getChannelVersionFromCode(
+                            mProject.getProjectDir().absolutePath +
+                                    '\\src\\main\\java\\com\\quicksdk\\apiadapter\\' + channelName + '\\SdkAdapter.java')
+        }
+        //创建task:生成的资源会覆盖到打包工具的渠道资源的目录下
+        mProject.tasks.create("extractChannelResource${variant.name.capitalize()}(move)", ChannelResourceCreateTask) {
+            it.group = "channelTool"
+            it.description = "Extract channel resource"
+            it.channelType = channelType
+            it.move = true
             it.channelName = channelName
             it.projectPackName = mProject.android.defaultConfig.applicationId
             it.tempChannelResDir = PathUtils.getInstance().getManifestFileDir()

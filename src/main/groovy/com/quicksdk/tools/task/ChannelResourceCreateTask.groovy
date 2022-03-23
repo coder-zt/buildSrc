@@ -38,6 +38,10 @@ class ChannelResourceCreateTask extends DefaultTask {
     @Input
     String channelResourceDir
 
+    //是否移动到打包工具的渠道资源目录下
+    @Input
+    boolean move
+
     @Input
     @Optional
     String channelName
@@ -61,9 +65,24 @@ class ChannelResourceCreateTask extends DefaultTask {
 
     File filesDir
 
+
+    boolean test = false
+
     @TaskAction
     void execute(){
+
+        if(test){
+            handleStyleableClass()
+            return
+        }
         init()
+        File oldChannelRes = new File(channelResourceDir + File.separator + resourceName)
+        File tempChannelRes = new File(tempHandleDir + File.separator + resourceName)
+        Logger.i("oldChannelRes:$oldChannelRes")
+        Logger.i("tempChannelRes:$tempChannelRes")
+        if(tempChannelRes.exists()){
+            getProject().delete(tempChannelRes)
+        }
         def created = createChannelResDir()
         if(created){
             createFirstDirAndFile()
@@ -84,20 +103,88 @@ class ChannelResourceCreateTask extends DefaultTask {
             println "创建渠道文件夹失败"
             return
         }
+        if(move){
+            //移动渠道资源到打包工具的目录下
+            Logger.i("移动渠道资源到打包工具的目录下")
+            if(oldChannelRes.exists()){
+               getProject().delete(oldChannelRes)
+            }
+            getProject().copy {
+                from tempChannelRes.absolutePath
+                into oldChannelRes.absolutePath
+            }
+            if(tempChannelRes.exists()){
+                getProject().delete(tempChannelRes)
+            }
+        }
+    }
 
-        //移动渠道资源到打包工具的目录下
-        File oldChannelRes = new File(channelResourceDir + File.separator + resourceName)
-        File tempChannelRes = new File(tempChannelResDir + File.separator + resourceName)
-        if(oldChannelRes.exists()){
-           getProject().delete(oldChannelRes)
+    def handleStyleableClass(String rJavaPath){
+        def res = read(rJavaPath)
+        Map<String, String> map = new HashMap()
+        //public static final class attr
+        String cName = ""
+        res.split("\n").each {
+            if(it.strip().contains("public static final class ")){
+                cName = it.strip().replace("public static final class ", "")
+            }
+            if(it.contains(" = 0x")){
+                def resLineSplit = it.split(" = 0x")
+                if(resLineSplit.size() == 2){
+                    def frontString = resLineSplit[0]
+                    def value = resLineSplit[1].trim().replace(";","")
+                    def resFront = frontString.split(" int ")
+                    def varName = resFront[1]
+                    String key = "0x" + value
+                    map.put(key, cName + '.' + varName.trim())
+                    Logger.println(key + "===" + map.get(key))
+                }
+            }
         }
-        getProject().copy {
-            from tempChannelRes.absolutePath
-            into oldChannelRes.absolutePath
+        StringBuilder sbHandler = new StringBuilder();
+        res.split("\n").each {
+            String newLine = it
+            if(!it.contains(" = 0x") && it.strip().startsWith("0x")){
+                def oxNumberLineSplit = it.split(",")
+                def that = it
+                oxNumberLineSplit.each {
+                    if(map.containsKey(it.trim())){
+                        that = that.replace(it.trim(), map.get(it.trim()))
+                    }
+//                    Logger.println(it.trim() + "== ${map.size()} =" + map.get(it.trim()))
+                }
+                newLine = that
+            }
+            sbHandler.append(newLine).append("\n")
+//            Logger.i(newLine)
         }
-        if(tempChannelRes.exists()){
-            getProject().delete(tempChannelRes)
+        write(rJavaPath, sbHandler.toString())
+    }
+
+
+    static String read(String destPath) {
+        List<String> lines
+        try{
+            // 创建目标文件
+            File destFile = new File(destPath)
+            destFile.withReader{ reader ->
+                lines = reader.readLines()
+            }
+        }catch(Exception e){
+            e.printStackTrace()
         }
+        StringBuilder sbContent = new StringBuilder()
+        if(lines != null){
+            int lineIndex = 0
+            lines.each {
+                sbContent.append(it)
+                lineIndex++
+                if(lineIndex < lines.size()){
+                    sbContent.append("\n")
+                }
+            }
+        }
+        return sbContent.toString()
     }
 
     /**
@@ -253,6 +340,7 @@ class ChannelResourceCreateTask extends DefaultTask {
                 //it.value + "\\R.java"
                 //对R.java文件进行特殊处理
                 def RJavaPath = it.value + "\\R.java"
+                handleStyleableClass(RJavaPath)
                 handleJavaFile2Jar(it.getKey(), RJavaPath, it.key == pack)
             }
         }

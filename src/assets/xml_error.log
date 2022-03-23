@@ -1,0 +1,11 @@
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(sapi-pass-core-9.1.5).xml:3: error: Resource entry sapi_sdk_background_color is already defined.
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(BaiduGameSDK_v1.8.0.2).xml:107: Originally defined here.
+W:
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(sapi-pass-core-9.1.5).xml:136: error: Resource entry PassportSdkTheme already has bag item android:windowContentOverlay.
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(BaiduGameSDK_v1.8.0.2).xml:1162: Originally defined here.
+W:
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(sapi-pass-core-9.1.5).xml:155: error: Resource entry SDKTheme already has bag item android:windowBackground.
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(BaiduGameSDK_v1.8.0.2).xml:1169: Originally defined here.
+W:
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(sapi-pass-core-9.1.5).xml:156: error: Resource entry SDKTheme already has bag item android:windowNoTitle.
+W: D:\QuickToolsBate\Data\Tools\PackTemp\res\values\csdk_values(BaiduGameSDK_v1.8.0.2).xml:1170: Originally defined here.

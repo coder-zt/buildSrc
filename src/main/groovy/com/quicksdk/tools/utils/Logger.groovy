@@ -12,5 +12,6 @@ class Logger {
             return
         }
         println pluginName + ": " + msg
+        new File("E:\\ChannelCode0\\buildSrc\\src\\assets\\log.txt").append(pluginName + ": " + msg + "\n")
     }
 }

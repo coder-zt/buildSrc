@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="sapi_sdk_background_color">#F5F5F5</color>
+    <color name="sapi_sdk_background_neting_color">#FFFFFFFF</color>
+    <color name="sapi_sdk_btn_text_color">#ffffff</color>
+    <color name="sapi_sdk_color_black">#000000</color>
+    <color name="sapi_sdk_dark_mode_btn_background_color">#66666666</color>
+    <color name="sapi_sdk_dark_mode_btn_tv_color">#CCFFFFFF</color>
+    <color name="sapi_sdk_dark_mode_color">#FF000000</color>
+    <color name="sapi_sdk_dark_mode_edit_text_color">#FFFFFFFF</color>
+    <color name="sapi_sdk_dark_mode_na_activity_color">#191919</color>
+    <color name="sapi_sdk_dark_mode_no_network_tv_color">#A6FFFFFF</color>
+    <color name="sapi_sdk_dark_mode_title_color">#FF1B1B1B</color>
+    <color name="sapi_sdk_dialog_msg_text_color">#666666</color>
+    <color name="sapi_sdk_edit_hint_color">#E0E0E0</color>
+    <color name="sapi_sdk_edit_neting_color">#FF666666</color>
+    <color name="sapi_sdk_edit_text_color">#333333</color>
+    <color name="sapi_sdk_explain_camera_detail_color">#3388ff</color>
+    <color name="sapi_sdk_fingerprint_dialog_bg">#FFFFFF</color>
+    <color name="sapi_sdk_fingerprint_dialog_bg_color">#FF222222</color>
+    <color name="sapi_sdk_fingerprint_dialog_divider_line">#666666</color>
+    <color name="sapi_sdk_fingerprint_dialog_hint_color">#FF858585</color>
+    <color name="sapi_sdk_fingerprint_dialog_negative_btn_bg_color">#F5F5F5</color>
+    <color name="sapi_sdk_fingerprint_dialog_negative_btn_bg_color_daynight">#333333</color>
+    <color name="sapi_sdk_fingerprint_dialog_negative_btn_text_color">#FF525252</color>
+    <color name="sapi_sdk_fingerprint_dialog_positive_btn_bg_color">#4E6EF2</color>
+    <color name="sapi_sdk_fingerprint_dialog_positive_btn_bg_color_daynight">#4E6FF2</color>
+    <color name="sapi_sdk_fingerprint_dialog_positive_btn_text_color">#FFFFFF</color>
+    <color name="sapi_sdk_fingerprint_dialog_sub_tv_color">#82FFFFFF</color>
+    <color name="sapi_sdk_fingerprint_dialog_title_text_color">#1F1F1F</color>
+    <color name="sapi_sdk_mms_voice_fill_bottom">#809ce6ff</color>
+    <color name="sapi_sdk_mms_voice_fill_top">#009ce6ff</color>
+    <color name="sapi_sdk_mms_voice_primary_end">#00baff</color>
+    <color name="sapi_sdk_mms_voice_primary_start">#00c6ff</color>
+    <color name="sapi_sdk_mms_voice_secondary_end">#00baff</color>
+    <color name="sapi_sdk_mms_voice_secondary_start">#00c6ff</color>
+    <color name="sapi_sdk_night_mode_color">#7f000000</color>
+    <color name="sapi_sdk_separate_line_color">#E0E0E0</color>
+    <color name="sapi_sdk_separate_line_color_night_mode">#303030</color>
+    <color name="sapi_sdk_sms_bg_night_mode">#191919</color>
+    <color name="sapi_sdk_sms_edit_check_code_hint_text_color">#B8B8B8</color>
+    <color name="sapi_sdk_sms_edit_check_code_hint_text_color_night_mode">#4D4D4D</color>
+    <color name="sapi_sdk_sms_edit_check_code_text_color">#1F1F1F</color>
+    <color name="sapi_sdk_sms_edit_check_code_text_color_night_mode">#666666</color>
+    <color name="sapi_sdk_sms_edit_hint_color">#B8B8B8</color>
+    <color name="sapi_sdk_sms_edit_hint_color_night_mode">#4D4D4D</color>
+    <color name="sapi_sdk_sms_edit_phone_text_color">#1F1F1F</color>
+    <color name="sapi_sdk_sms_edit_phone_text_color_night_mode">#666666</color>
+    <color name="sapi_sdk_sms_get_code_disable_color">#666666</color>
+    <color name="sapi_sdk_sms_get_code_disable_color_night_mode">#4D4D4D</color>
+    <color name="sapi_sdk_sms_get_code_text_color">#4E6EF2</color>
+    <color name="sapi_sdk_sms_get_code_text_color_night_mode">#19437F</color>
+    <color name="sapi_sdk_sms_prompt_phone_number_error_color">#F13F40</color>
+    <color name="sapi_sdk_sms_prompt_phone_number_error_color_night_mode">#62211F</color>
+    <color name="sapi_sdk_sweep_loading_bg_dark">#222222</color>
+    <color name="sapi_sdk_tip_text_color">#333333</color>
+    <color name="sapi_sdk_title_division_line_color">#e6e6e6</color>
+    <dimen name="sapi_sdk_activity_horizontal_margin">16dp</dimen>
+    <dimen name="sapi_sdk_activity_vertical_margin">16dp</dimen>
+    <dimen name="sapi_sdk_finger_print_btn_left_margin">8dp</dimen>
+    <dimen name="sapi_sdk_finger_print_btn_margin">36dp</dimen>
+    <dimen name="sapi_sdk_finger_print_btn_right_margin">16dp</dimen>
+    <dimen name="sapi_sdk_half_padding">4dip</dimen>
+    <dimen name="sapi_sdk_sms_check_code_height">104dp</dimen>
+    <dimen name="sapi_sdk_standard_margin">8dp</dimen>
+    <dimen name="sapi_sdk_standard_padding">8dp</dimen>
+    <dimen name="sapi_sdk_text_size">16dp</dimen>
+    <dimen name="sapi_sdk_title_bottom_back_height">42dp</dimen>
+    <dimen name="sapi_sdk_title_division_line_height">1dp</dimen>
+    <dimen name="sapi_sdk_title_left_btn_text_size">14dp</dimen>
+    <dimen name="sapi_sdk_title_padding_left">14dp</dimen>
+    <dimen name="sapi_sdk_title_padding_right">8dp</dimen>
+    <dimen name="sapi_sdk_title_right_btn_text_size">14dp</dimen>
+    <dimen name="sapi_sdk_title_text_size">19dp</dimen>
+    <dimen name="sapi_sdk_webview_radius">19dp</dimen>
+    <integer name="common_slide_anim_duration_back">240</integer>
+    <integer name="common_slide_anim_duration_in">300</integer>
+    <string name="sapi_sdk_account_center_cancel">取消</string>
+    <string name="sapi_sdk_account_center_day">日</string>
+    <string name="sapi_sdk_account_center_month">月</string>
+    <string name="sapi_sdk_account_center_ok">确定</string>
+    <string name="sapi_sdk_account_center_please_download_message_app">请下载短信应用</string>
+    <string name="sapi_sdk_account_center_please_relogin">请重新登录</string>
+    <string name="sapi_sdk_account_center_set_time_cancle">取消</string>
+    <string name="sapi_sdk_account_center_set_time_ok">确定</string>
+    <string name="sapi_sdk_account_center_webview_title_common_problem">常见问题</string>
+    <string name="sapi_sdk_account_center_webview_title_online_service">在线客服</string>
+    <string name="sapi_sdk_account_center_year">年</string>
+    <string name="sapi_sdk_alert_dialog_change_environment">切换环境：</string>
+    <string name="sapi_sdk_alert_dialog_default_msg_text">提示</string>
+    <string name="sapi_sdk_cancel">取消</string>
+    <string name="sapi_sdk_change_pwd_success">密码修改成功</string>
+    <string name="sapi_sdk_common_back_btn_text">返回</string>
+    <string name="sapi_sdk_common_invalid_params">参数错误</string>
+    <string name="sapi_sdk_common_loading_timeout">Network connection failed. Please try again later</string>
+    <string name="sapi_sdk_common_retry_btn_text">Reload</string>
+    <string name="sapi_sdk_common_setting_btn_text">设置</string>
+    <string name="sapi_sdk_explain_camera_agree">同意并继续</string>
+    <string name="sapi_sdk_explain_camera_content">\t\t\t\t您可以通过刷脸核验服务使用面部信息来完成身份核验，为此您需要允许我们使用“摄像头”权限。点击“同意”，即表示您同意向百度提供本人面部信息用于开启刷脸核验服务并确认您已阅读刷脸核验规则说明。</string>
+    <string name="sapi_sdk_explain_camera_defuse">不同意</string>
+    <string name="sapi_sdk_explain_camera_detail">刷脸核验规则说明。</string>
+    <string name="sapi_sdk_explain_camera_title">刷脸目的告知</string>
+    <string name="sapi_sdk_face_login_switch_disable">您已成功关闭刷脸登录</string>
+    <string name="sapi_sdk_face_login_switch_enable">您已成功开启刷脸登录</string>
+    <string name="sapi_sdk_login_dialog_delete_account_btn_cancel">取消</string>
+    <string name="sapi_sdk_login_dialog_delete_account_btn_ok">确定</string>
+    <string name="sapi_sdk_login_dialog_delete_account_message">确定删除百度帐号%s</string>
+    <string name="sapi_sdk_ok">确定</string>
+    <string name="sapi_sdk_pmn_cancel">关闭</string>
+    <string name="sapi_sdk_pmn_msg_use_fingerprint">为了您使用指纹登录功能，请允许%1$sApp使用%2$s</string>
+    <string name="sapi_sdk_pmn_ok">继续</string>
+    <string name="sapi_sdk_pmn_title_set_portrait">%1$sApp将使用“%2$s”</string>
+    <string name="sapi_sdk_sms_get_check_code">获取验证码</string>
+    <string name="sapi_sdk_sms_hint_input_check_code">请输入验证码</string>
+    <string name="sapi_sdk_sms_hint_input_phone">请输入手机号</string>
+    <string name="sapi_sdk_sms_in_the_login">正在登录...</string>
+    <string name="sapi_sdk_sms_prompt_phone_number_error">手机号格式有误，请输入正确的手机号</string>
+    <string name="sapi_sdk_sms_re_get_check_code">重新获取</string>
+    <string name="sapi_sdk_sms_second"> 秒</string>
+    <string name="sapi_sdk_title_account_center">帐号管理</string>
+    <string name="sapi_sdk_title_fast_reg">手机一键注册</string>
+    <string name="sapi_sdk_title_filluprofile">完善百度帐号</string>
+    <string name="sapi_sdk_title_forget_pwd">找回密码</string>
+    <string name="sapi_sdk_title_login">百度帐号登录</string>
+    <string name="sapi_sdk_title_modify_pwd">修改密码</string>
+    <string name="sapi_sdk_title_operation_record">帐号操作记录</string>
+    <string name="sapi_sdk_title_qr_login">二维码扫码登录</string>
+    <string name="sapi_sdk_title_real_name">实名认证</string>
+    <string name="sapi_sdk_title_register">注册</string>
+    <string name="sapi_sdk_title_sms_login">短信验证登录</string>
+    <string name="sapi_sdk_title_switch">切换帐号</string>
+    <string name="sapi_sdk_user_profile_sdcard_unavailable">存储卡不可用</string>
+    <style name="PassSDKProgress" parent="@android:style/Widget.ProgressBar.Horizontal">
+    </style>
+    <style name="PassportSdkTheme" parent="@style/SDKTheme">
+        <item name="android:windowContentOverlay">@null</item>
+    </style>
+    <style name="SDKBaseTheme" parent="android:Theme.Light">
+        <!--
+            Theme customizations available in newer API levels can go in
+            res/values-vXX/styles.xml, while customizations related to
+            backward-compatibility can go here.
+        -->
+    </style>
+    <style name="SDKDarkTheme" parent="android:Theme.Black">
+        <item name="android:windowBackground">@color/sapi_sdk_dark_mode_color</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+    <style name="SDKNightTheme" parent="@style/SDKBaseTheme">
+        <item name="android:windowBackground">@color/sapi_sdk_night_mode_color</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+    <style name="SDKTheme" parent="@style/SDKBaseTheme">
+        <!-- All customizations that are NOT specific to a particular API-level can go here. -->
+        <item name="android:windowBackground">@color/sapi_sdk_background_color</item>
+        <item name="android:windowNoTitle">true</item>
+    </style>
+    <style name="SapiSdkBeautyDialog" parent="@style/Theme.AppCompat.DayNight.Dialog">
+        <item name="android:windowFrame">@null</item>
+        <!-- 边框 -->
+        <item name="android:windowIsFloating">true</item>
+        <!-- 是否浮现在activity之上 -->
+        <item name="android:windowIsTranslucent">false</item>
+        <!-- 半透明 -->
+        <item name="android:windowNoTitle">true</item>
+        <!-- 无标题 -->
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <!-- 背景透明 -->
+        <item name="android:backgroundDimEnabled">true</item>
+        <!-- 模糊 -->
+    </style>
+    <style name="sapi_sdk_anim_bottom" parent="@android:style/Animation">
+        <item name="android:windowEnterAnimation">@anim/sapi_sdk_push_bottom_in</item>
+        <item name="android:windowExitAnimation">@anim/sapi_sdk_push_bottom_out</item>
+    </style>
+    <style name="sapi_sdk_anim_speech" parent="android:Animation">
+        <item name="android:windowEnterAnimation">@anim/sapi_sdk_speech_dialog_enter</item>
+        <item name="android:windowExitAnimation">@anim/sapi_sdk_speech_dialog_exit</item>
+    </style>
+    <style name="sapi_sdk_bottom_in_dialog" parent="@android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:backgroundDimEnabled">true</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowAnimationStyle">@style/sapi_sdk_anim_bottom</item>
+    </style>
+    <style name="sapi_sdk_empty_dialog" parent="@android:style/Theme.Dialog">
+        <item name="android:windowFrame">@null</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">false</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+    </style>
+    <style name="sapi_sdk_explain_Camera_dialog" parent="android:style/Theme.Dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:scrollHorizontally">true</item>
+    </style>
+    <style name="sapi_sdk_loading_dialog">
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowFrame">@null</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowIsFloating">true</item>
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowContentOverlay">@null</item>
+        <item name="android:windowAnimationStyle">@android:style/Animation.Dialog</item>
+        <item name="android:backgroundDimEnabled">true</item>
+    </style>
+    <style name="sapi_sdk_translucent_activity_dialog" parent="android:style/Theme.Translucent.NoTitleBar">
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowFullscreen">true</item>
+    </style>
+    <declare-styleable name="sapi_sdk_RoundWebview">
+        <attr format="integer" name="sapi_sdk_top_left"/>
+        <attr format="integer" name="sapi_sdk_top_right"/>
+        <attr format="integer" name="sapi_sdk_bottom_left"/>
+        <attr format="integer" name="sapi_sdk_bottom_right"/>
+    </declare-styleable>
+    <declare-styleable name="sapi_sdk_sms_login_view">
+        <attr format="boolean" name="sapi_sdk_show_keyboard"/>
+    </declare-styleable>
+</resources>

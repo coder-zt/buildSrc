@@ -1,8 +1,6 @@
 package com.quicksdk.tools.hook
 
 import com.android.build.gradle.api.ApplicationVariant
-import com.quicksdk.tools.extension.JarExcludeExt
-import com.quicksdk.tools.utils.DataMan
 import com.quicksdk.tools.utils.Logger
 import com.quicksdk.tools.utils.PathUtils
 import org.gradle.api.Project
@@ -12,34 +10,26 @@ import org.gradle.api.Task
  * hook dexBuilder task
  * 提取接入渠道的工程代码和R.jar
  */
-class DexBuilderHook extends HookTask{
+class ProcessResourcesHook extends HookTask{
 
-    private static String hookTaskName = 'dexBuilderVariant'
+    private static String hookTaskName = 'processVariantResources'
 
 
-    DexBuilderHook(ApplicationVariant variant, Project project) {
+    ProcessResourcesHook(ApplicationVariant variant, Project project) {
         super(hookTaskName, project)
         taskName = hookTaskName.replace("Variant",  variant.name.capitalize())
     }
 
     @Override
-    void doFirst(Task task) {
-        Logger.i("hook ${task.name} 提取接入渠道的工程代码和R.jar")
-        task.inputs.files.each {
-            def that = it
-            Logger.i("DexBuilderHook: " + it.absolutePath)
-            //将接入工程中的*.class文件复制的临时目录
-            if(it.absolutePath.endsWith('classes') ||!it.absolutePath.endsWith('jar')){
-                mProject.copy {
-                    from that.absolutePath
-                    into PathUtils.getInstance().getTempClassesDir()
-                }
-            }
-            //删除多余的文件
-            def classesTempDir = new File( PathUtils.getInstance().getTempClassesDir())
-            deleteExtraFile(classesTempDir, false)
-            //将R.jar文件复制到jar和res-jar目录下
+    void doLast(Task task) {
+        Logger.i("hook ${task.name} 提取R.jar")
+        task.outputs.files.each {
+
+
+//            //将R.jar文件复制到jar和res-jar目录下
             if(it.name == "R.jar") {
+                Logger.i("ProcessResourcesHook: yes " + it.absolutePath)
+                def that = it
                 mProject.copy {
                     from that.absolutePath
                     into PathUtils.getInstance().getTempJarDir()
@@ -48,6 +38,8 @@ class DexBuilderHook extends HookTask{
                     from that.absolutePath
                     into PathUtils.getInstance().getTempResJarDir()
                 }
+            }else {
+                Logger.i("ProcessResourcesHook: no " + it.absolutePath)
             }
         }
         //            projectClass2Smali()

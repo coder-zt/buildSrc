@@ -1,6 +1,7 @@
 package com.quicksdk.tools.hook
 
 import com.android.build.gradle.api.ApplicationVariant
+import com.android.ddmlib.Log
 import com.quicksdk.tools.extension.JarExcludeExt
 import com.quicksdk.tools.utils.DataMan
 import com.quicksdk.tools.utils.Logger
@@ -25,9 +26,12 @@ class MergeJavaResourceHook extends HookTask{
     @Override
     void doFirst(Task task) {
         Logger.i("hook ${task.name} 提取项目使用的jar")
+        List<String> dependencies = getProjectDependencies(mProject)
+        dependencies.forEach{
+            Logger.i("dependencies ===> $it")
+        }
         task.inputs.files.each {
             File temp = it
-
             //排除quick的相关的库，不需要这些库的smali
             def jarExt = mProject.extensions.getByType(JarExcludeExt.class)
             def originLibName = it.name;
@@ -35,6 +39,7 @@ class MergeJavaResourceHook extends HookTask{
                 originLibName = it.name.replace("jetified-", "")
             }
             if (jarExt != null && jarExt.excludeJar != null && !jarExt.excludeJar.contains(originLibName)) {
+                Logger.i("project jar ===> " + temp.absolutePath)
                 mProject.copy {
                     from temp.absolutePath
                     into PathUtils.getInstance().getTempJarDir()
@@ -47,7 +52,6 @@ class MergeJavaResourceHook extends HookTask{
                     def copiedFile = new File(jarCopiedPath)
                     copiedFile.renameTo(reNameLib)
                 }
-                PathUtils.getInstance().getTempJarDir()
                 if (it.name == 'classes.jar') {
                     def libName = it.parentFile.parentFile.name + ".jar"
                     def originalName = libName.replace("jetified-", "")

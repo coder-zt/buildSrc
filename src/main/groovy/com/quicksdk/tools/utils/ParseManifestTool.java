@@ -96,6 +96,7 @@ public class ParseManifestTool {
 							String quickValue = quickData.substring(quickData.indexOf(":") + 1, quickData.length());
 							String replaceKey = "{{$" + quickKey + "}}";
 							String tmp = result.replace(quickValue, replaceKey);
+							Logger.i(tmp);
 							String removeContent = tmp.substring(tmp.indexOf("<!-- {{#"), tmp.indexOf("#}} -->")
 									+ "#}} -->".length());
 							result = tmp.replace(removeContent, "");
